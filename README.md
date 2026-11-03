@@ -2,6 +2,8 @@
 
 Mağaza sorumlusu sabah stok dosyasını panele yüklediği anda **"Sipariş vermem gereken ürün var mı, hangileri?"** sorusunun cevabını görür.
 
+_Bu dokümanda **PO**, CaseFlow portalındaki **Talep Sahibi**'ni ifade eder._
+
 - Her ürünün stokunun **kaç gün yeteceğini** ve **tahmini bitiş tarihini** hesaplar.
 - Ürünleri **Tükendi / Kritik / Dikkat / Kontrol et / Yeterli / Hareketsiz** olarak renklendirir.
 - **"Ne yapmalı?"** kolonunda her ürün için ne zaman sipariş verileceğini yazar ("Bugün sipariş ver · ~3 gün stoksuz kalacak", "En geç 2 gün içinde sipariş ver (≈ 5 Kas)").
