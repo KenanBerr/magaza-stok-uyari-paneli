@@ -1,0 +1,906 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stok Uyarı Paneli</title>
+<style>
+  :root {
+    --navy: #0B2A5B;
+    --navy-2: #163d7a;
+    --bg: #f4f6fa;
+    --card: #ffffff;
+    --text: #1b2433;
+    --muted: #5d6b82;
+    --line: #e2e7ef;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+  }
+  header.top {
+    background: var(--card);
+    border-bottom: 4px solid var(--navy);
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  /* Logo görselinde çok boşluk var: kutuyu sabitleyip object-fit: cover ile kırpıyoruz */
+  .logo {
+    width: 190px;
+    height: 30px;
+    object-fit: cover;
+    object-position: center;
+    display: block;
+  }
+  .title-block h1 {
+    margin: 0;
+    font-size: 20px;
+    color: var(--navy);
+    letter-spacing: .2px;
+  }
+  .title-block .today { color: var(--muted); font-size: 13px; }
+  .source-badge {
+    margin-left: auto;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 13px;
+  }
+  .source-badge.sample {
+    background: #fff4d6;
+    color: #8a5a00;
+    border: 2px dashed #e0a800;
+    letter-spacing: 1px;
+  }
+  .source-badge.file {
+    background: #e7eefb;
+    color: var(--navy);
+    border: 2px solid #b9cbee;
+    font-weight: 600;
+  }
+  main { max-width: 1360px; margin: 0 auto; padding: 20px 24px 40px; }
+
+  /* ---------- Özet kutusu (IK-5) ---------- */
+  .summary {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    flex-wrap: wrap;
+    background: var(--card);
+    border-radius: 10px;
+    padding: 18px 22px;
+    border-left: 8px solid #c62828;
+    box-shadow: 0 1px 3px rgba(11, 42, 91, .08);
+    margin-bottom: 16px;
+  }
+  .summary.ok { border-left-color: #2e7d32; }
+  .summary-main { flex: 1 1 320px; }
+  .summary-headline { font-size: 24px; font-weight: 700; color: #b71c1c; line-height: 1.25; }
+  .summary.ok .summary-headline { color: #2e7d32; }
+  .summary-sub { color: var(--muted); margin-top: 4px; }
+  .counters { display: flex; gap: 8px; flex-wrap: wrap; }
+  .counter {
+    min-width: 86px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    text-align: center;
+    border: 1px solid var(--line);
+    background: #fafbfd;
+  }
+  .counter .n { font-size: 22px; font-weight: 700; display: block; }
+  .counter .l { font-size: 12px; color: var(--muted); }
+  .counter.TUKENDI .n { color: #212121; }
+  .counter.KRITIK .n { color: #c62828; }
+  .counter.DIKKAT .n { color: #b07800; }
+  .counter.YETERLI .n { color: #2e7d32; }
+  .counter.KONTROL .n { color: #1e5fb4; }
+  .counter.HAREKETSIZ .n { color: #8a94a6; }
+
+  /* ---------- Tablo ---------- */
+  .table-wrap {
+    background: var(--card);
+    border-radius: 10px;
+    box-shadow: 0 1px 3px rgba(11, 42, 91, .08);
+    overflow-x: auto;
+  }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 9px 10px; text-align: left; white-space: nowrap; }
+  th {
+    background: var(--navy);
+    color: #fff;
+    font-weight: 600;
+    font-size: 13px;
+    position: sticky;
+    top: 0;
+  }
+  td { border-bottom: 1px solid var(--line); }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  td.name { white-space: normal; min-width: 220px; }
+  /* IK-12: ürün görseli / kategori ikonu */
+  .prod { display: flex; align-items: center; gap: 10px; }
+  .thumb {
+    width: 40px; height: 40px; flex: none;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    background: #fff;
+    object-fit: cover;
+  }
+  .thumb.icon {
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 22px; background: #f0f3f8;
+  }
+  td.sku { font-family: Consolas, "Courier New", monospace; font-size: 13px; }
+  td.strong { font-weight: 700; }
+
+  tr.row-TUKENDI    { background: #ebebeb; }
+  tr.row-TUKENDI td:first-child { box-shadow: inset 5px 0 0 #212121; }
+  tr.row-KRITIK     { background: #fdeaea; }
+  tr.row-KRITIK td:first-child { box-shadow: inset 5px 0 0 #c62828; }
+  tr.row-DIKKAT     { background: #fff6dc; }
+  tr.row-DIKKAT td:first-child { box-shadow: inset 5px 0 0 #e0a800; }
+  tr.row-YETERLI td:first-child { box-shadow: inset 5px 0 0 #43a047; }
+  tr.row-KONTROL    { background: #eaf2fd; }
+  tr.row-KONTROL td:first-child { box-shadow: inset 5px 0 0 #1e6fd9; }
+  tr.row-HAREKETSIZ { color: #8a94a6; }
+
+  /* IK-13: "Ne yapmalı?" */
+  td.action { white-space: normal; min-width: 210px; line-height: 1.3; }
+  td.action.urgent { color: #b71c1c; font-weight: 700; }
+  td.action.soon { color: #6b4b00; font-weight: 600; }
+  td.action.none { color: #9aa5b6; }
+  td.action.check { color: #1e5fb4; font-weight: 400; }   /* Kontrol et: mavi, kalın değil */
+  td.action.check .action-sub { color: #4a78b8; }
+  .action-sub { display: block; font-size: 12px; font-weight: 400; }
+  td.action.urgent .action-sub { color: #c62828; }
+  td.action.soon .action-sub { color: var(--muted); }
+
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .badge.TUKENDI    { background: #212121; color: #fff; }
+  .badge.KRITIK     { background: #c62828; color: #fff; }
+  .badge.DIKKAT     { background: #f6c343; color: #4a3500; }
+  .badge.YETERLI    { background: #dff1e0; color: #1b5e20; }
+  .badge.KONTROL    { background: #1e6fd9; color: #fff; }
+  .badge.HAREKETSIZ { background: #eceff3; color: #5d6b82; }
+
+  .empty { padding: 28px; text-align: center; color: var(--muted); }
+
+  .inactive-bar {
+    margin-top: 10px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  button.link {
+    background: none;
+    border: 1px solid #b9cbee;
+    color: var(--navy);
+    border-radius: 6px;
+    padding: 4px 10px;
+    cursor: pointer;
+    font: inherit;
+  }
+  button.link:hover { background: #e7eefb; }
+
+  /* ---------- Yükleme çubuğu (IK-8, IK-9, IK-11) ---------- */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--navy);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 9px 16px;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+  }
+  .btn:hover { background: var(--navy-2); }
+  .btn.secondary { background: #fff; color: var(--navy); border: 1px solid #b9cbee; }
+  .btn.secondary:hover { background: #e7eefb; }
+  .hint { color: var(--muted); font-size: 12px; }
+  body.dragging main { outline: 3px dashed var(--navy); outline-offset: -8px; }
+
+  .msg {
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 14px;
+    position: relative;
+  }
+  .msg.error { background: #fdecea; border: 1px solid #f5b5b0; color: #8e1b14; }
+  .msg.warn  { background: #fff6dc; border: 1px solid #f0d58a; color: #5c4300; }
+  .msg b { display: block; margin-bottom: 4px; }
+  .msg ul { margin: 6px 0 0; padding-left: 20px; max-height: 180px; overflow: auto; }
+  /* ---------- Filtreler (IK-10) ---------- */
+  .filters {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+  .chip {
+    border: 1px solid var(--line);
+    background: #fff;
+    border-radius: 999px;
+    padding: 5px 12px;
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    color: var(--muted);
+  }
+  .chip.on { background: var(--navy); border-color: var(--navy); color: #fff; }
+  .filters select, .filters input {
+    font: inherit;
+    padding: 6px 10px;
+    border: 1px solid #c9d3e3;
+    border-radius: 6px;
+    background: #fff;
+  }
+  .filters input { min-width: 220px; }
+  .filters .count { margin-left: auto; color: var(--muted); font-size: 13px; }
+  @media (max-width: 600px) {
+    header.top, main { padding-left: 16px; padding-right: 16px; }
+    .summary-headline { font-size: 20px; }
+    .filters input { min-width: 0; width: 100%; }
+  }
+  .msg .close {
+    position: absolute; top: 8px; right: 10px;
+    background: none; border: none; font-size: 18px; cursor: pointer; color: inherit;
+  }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+
+<header class="top">
+  <img class="logo" alt="Skechers" src="data:image/png;base64,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JEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSJEmSNNn9f6zVavXUDodjAAAAAElFTkSuQmCC">
+  <div class="title-block">
+    <h1>Mağaza Stok Uyarı Paneli</h1>
+    <div class="today" id="today"></div>
+  </div>
+  <div class="source-badge sample" id="sourceBadge">ÖRNEK VERİ</div>
+</header>
+
+<main>
+  <div class="toolbar">
+    <label class="btn" for="fileInput">📂 Dosya yükle (.xlsx / .csv)</label>
+    <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" hidden>
+    <button class="btn secondary" id="templateBtn" type="button">⬇ Şablon indir (CSV)</button>
+    <span class="hint">Dosyayı sayfaya sürükleyip bırakabilirsiniz. Dosya tarayıcıda işlenir, hiçbir sunucuya gönderilmez.</span>
+  </div>
+
+  <div id="messages"></div>
+
+  <section id="summary" class="summary"></section>
+
+  <div class="filters">
+    <div id="statusChips" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+    <select id="categorySelect" aria-label="Kategori"></select>
+    <input type="search" id="searchInput" placeholder="SKU veya ürün adı ara…" aria-label="Ara">
+    <span class="count" id="rowCount"></span>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Durum</th>
+          <th>Ne yapmalı?</th>
+          <th>SKU</th>
+          <th>Ürün adı</th>
+          <th>Kategori</th>
+          <th class="num">Stok</th>
+          <th class="num">Günlük satış</th>
+          <th class="num">Tedarik (gün)</th>
+          <th class="num">Kalan gün</th>
+          <th>Tahmini bitiş</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+
+  <div class="inactive-bar" id="inactiveBar"></div>
+</main>
+
+<script>
+/* ============================================================
+   ÖRNEK VERİ (IK-9) – açılışta gösterilir, dosya yüklenince değişir.
+   İlk 3 satır PO'nun verdiği örnek.
+   ============================================================ */
+const SAMPLE_DATA = [
+  // PO örneği (değiştirilmedi)
+  { SKU: "TSH-1042",    ad: "Basic Beyaz Tişört S",              kategori: "Tişört",   mevcut_stok: 15, gunluk_satis_ortalamasi: 8,    tedarik_suresi_gun: 3 },
+  { SKU: "AYK-8801",    ad: "Sneaker Beyaz 42",                  kategori: "Ayakkabı", mevcut_stok: 20, gunluk_satis_ortalamasi: 3,    tedarik_suresi_gun: 7 },
+  { SKU: "CNT-3301",    ad: "Sırt Çantası Siyah",                kategori: "Çanta",    mevcut_stok: 5,  gunluk_satis_ortalamasi: 2,    tedarik_suresi_gun: 5 },
+  // D'Lites Kadın Sneaker Beyaz – bedenler: 36, 37, 38, 39, 40, 41
+  { SKU: "AYK-2320-36", ad: "D'Lites Kadın Sneaker Beyaz 36",    kategori: "Ayakkabı", mevcut_stok: 12, gunluk_satis_ortalamasi: 0.4,  tedarik_suresi_gun: 5 },
+  { SKU: "AYK-2320-37", ad: "D'Lites Kadın Sneaker Beyaz 37",    kategori: "Ayakkabı", mevcut_stok: 7,  gunluk_satis_ortalamasi: 0.8,  tedarik_suresi_gun: 5 },
+  { SKU: "AYK-2320-38", ad: "D'Lites Kadın Sneaker Beyaz 38",    kategori: "Ayakkabı", mevcut_stok: 4,  gunluk_satis_ortalamasi: 1.2,  tedarik_suresi_gun: 5 },
+  { SKU: "AYK-2320-39", ad: "D'Lites Kadın Sneaker Beyaz 39",    kategori: "Ayakkabı", mevcut_stok: 14, gunluk_satis_ortalamasi: 1,    tedarik_suresi_gun: 5 },
+  { SKU: "AYK-2320-40", ad: "D'Lites Kadın Sneaker Beyaz 40",    kategori: "Ayakkabı", mevcut_stok: 0,  gunluk_satis_ortalamasi: 1.5,  tedarik_suresi_gun: 5 },
+  { SKU: "AYK-2320-41", ad: "D'Lites Kadın Sneaker Beyaz 41",    kategori: "Ayakkabı", mevcut_stok: 30, gunluk_satis_ortalamasi: 0.6,  tedarik_suresi_gun: 5 },
+  // Arch Fit Kadın Yürüyüş – bedenler: 36, 37, 38, 39, 40, 41
+  { SKU: "AYK-5510-36", ad: "Arch Fit Kadın Yürüyüş 36",         kategori: "Ayakkabı", mevcut_stok: 10, gunluk_satis_ortalamasi: 0.5,  tedarik_suresi_gun: 6 },
+  { SKU: "AYK-5510-37", ad: "Arch Fit Kadın Yürüyüş 37",         kategori: "Ayakkabı", mevcut_stok: 9,  gunluk_satis_ortalamasi: 1.2,  tedarik_suresi_gun: 6 },
+  { SKU: "AYK-5510-38", ad: "Arch Fit Kadın Yürüyüş 38",         kategori: "Ayakkabı", mevcut_stok: 3,  gunluk_satis_ortalamasi: 1,    tedarik_suresi_gun: 6 },
+  { SKU: "AYK-5510-39", ad: "Arch Fit Kadın Yürüyüş 39",         kategori: "Ayakkabı", mevcut_stok: 18, gunluk_satis_ortalamasi: 2,    tedarik_suresi_gun: 6 },
+  { SKU: "AYK-5510-40", ad: "Arch Fit Kadın Yürüyüş 40",         kategori: "Ayakkabı", mevcut_stok: 28, gunluk_satis_ortalamasi: 1.8,  tedarik_suresi_gun: 6 },
+  { SKU: "AYK-5510-41", ad: "Arch Fit Kadın Yürüyüş 41",         kategori: "Ayakkabı", mevcut_stok: 15, gunluk_satis_ortalamasi: 0.6,  tedarik_suresi_gun: 6 },
+  // Go Run Koşu Ayakkabısı Mavi – bedenler: 40, 41, 42, 43, 44, 45
+  { SKU: "AYK-7720-40", ad: "Go Run Koşu Ayakkabısı Mavi 40",    kategori: "Ayakkabı", mevcut_stok: 20, gunluk_satis_ortalamasi: 0.5,  tedarik_suresi_gun: 7 },
+  { SKU: "AYK-7720-41", ad: "Go Run Koşu Ayakkabısı Mavi 41",    kategori: "Ayakkabı", mevcut_stok: 35, gunluk_satis_ortalamasi: 1.5,  tedarik_suresi_gun: 7 },
+  { SKU: "AYK-7720-42", ad: "Go Run Koşu Ayakkabısı Mavi 42",    kategori: "Ayakkabı", mevcut_stok: 9,  gunluk_satis_ortalamasi: 1.1,  tedarik_suresi_gun: 7 },
+  { SKU: "AYK-7720-43", ad: "Go Run Koşu Ayakkabısı Mavi 43",    kategori: "Ayakkabı", mevcut_stok: 4,  gunluk_satis_ortalamasi: 1.4,  tedarik_suresi_gun: 7 },
+  { SKU: "AYK-7720-44", ad: "Go Run Koşu Ayakkabısı Mavi 44",    kategori: "Ayakkabı", mevcut_stok: 16, gunluk_satis_ortalamasi: 0.9,  tedarik_suresi_gun: 7 },
+  { SKU: "AYK-7720-45", ad: "Go Run Koşu Ayakkabısı Mavi 45",    kategori: "Ayakkabı", mevcut_stok: 0,  gunluk_satis_ortalamasi: 0.4,  tedarik_suresi_gun: 7 },
+  // Uno Erkek Sneaker Beyaz – bedenler: 41, 42, 43, 44, 45, 46
+  { SKU: "AYK-9001-41", ad: "Uno Erkek Sneaker Beyaz 41",        kategori: "Ayakkabı", mevcut_stok: 15, gunluk_satis_ortalamasi: 0.7,  tedarik_suresi_gun: 7 },
+  { SKU: "AYK-9001-42", ad: "Uno Erkek Sneaker Beyaz 42",        kategori: "Ayakkabı", mevcut_stok: 10, gunluk_satis_ortalamasi: 1.3,  tedarik_suresi_gun: 7 },
+  { SKU: "AYK-9001-43", ad: "Uno Erkek Sneaker Beyaz 43",        kategori: "Ayakkabı", mevcut_stok: 18, gunluk_satis_ortalamasi: 1.2,  tedarik_suresi_gun: 7 },
+  { SKU: "AYK-9001-44", ad: "Uno Erkek Sneaker Beyaz 44",        kategori: "Ayakkabı", mevcut_stok: 0,  gunluk_satis_ortalamasi: 0,    tedarik_suresi_gun: 7 },
+  { SKU: "AYK-9001-45", ad: "Uno Erkek Sneaker Beyaz 45",        kategori: "Ayakkabı", mevcut_stok: 8,  gunluk_satis_ortalamasi: 0.4,  tedarik_suresi_gun: 7 },
+  { SKU: "AYK-9001-46", ad: "Uno Erkek Sneaker Beyaz 46",        kategori: "Ayakkabı", mevcut_stok: 6,  gunluk_satis_ortalamasi: 0,    tedarik_suresi_gun: 7 },
+  // Max Cushioning Erkek Sneaker – bedenler: 40, 41, 42, 43, 44, 45
+  { SKU: "AYK-9100-40", ad: "Max Cushioning Erkek Sneaker 40",   kategori: "Ayakkabı", mevcut_stok: 14, gunluk_satis_ortalamasi: 0.6,  tedarik_suresi_gun: 7 },
+  { SKU: "AYK-9100-41", ad: "Max Cushioning Erkek Sneaker 41",   kategori: "Ayakkabı", mevcut_stok: 11, gunluk_satis_ortalamasi: 1,    tedarik_suresi_gun: 7 },
+  { SKU: "AYK-9100-42", ad: "Max Cushioning Erkek Sneaker 42",   kategori: "Ayakkabı", mevcut_stok: 8,  gunluk_satis_ortalamasi: 1.6,  tedarik_suresi_gun: 7 },
+  { SKU: "AYK-9100-43", ad: "Max Cushioning Erkek Sneaker 43",   kategori: "Ayakkabı", mevcut_stok: 22, gunluk_satis_ortalamasi: 1.5,  tedarik_suresi_gun: 7 },
+  { SKU: "AYK-9100-44", ad: "Max Cushioning Erkek Sneaker 44",   kategori: "Ayakkabı", mevcut_stok: 9,  gunluk_satis_ortalamasi: 0.7,  tedarik_suresi_gun: 7 },
+  { SKU: "AYK-9100-45", ad: "Max Cushioning Erkek Sneaker 45",   kategori: "Ayakkabı", mevcut_stok: 1,  gunluk_satis_ortalamasi: 0.05, tedarik_suresi_gun: 7 },
+  // Dry Fit Koşu Tişörtü Siyah – bedenler: S, M, L, XL
+  { SKU: "TSH-2201-S",  ad: "Dry Fit Koşu Tişörtü Siyah S",      kategori: "Tişört",   mevcut_stok: 0,  gunluk_satis_ortalamasi: 2.2,  tedarik_suresi_gun: 4 },
+  { SKU: "TSH-2201-M",  ad: "Dry Fit Koşu Tişörtü Siyah M",      kategori: "Tişört",   mevcut_stok: 6,  gunluk_satis_ortalamasi: 2.5,  tedarik_suresi_gun: 4 },
+  { SKU: "TSH-2201-L",  ad: "Dry Fit Koşu Tişörtü Siyah L",      kategori: "Tişört",   mevcut_stok: 18, gunluk_satis_ortalamasi: 2,    tedarik_suresi_gun: 4 },
+  { SKU: "TSH-2201-XL", ad: "Dry Fit Koşu Tişörtü Siyah XL",     kategori: "Tişört",   mevcut_stok: 10, gunluk_satis_ortalamasi: 1.5,  tedarik_suresi_gun: 4 },
+  // Oversize Logo Tişört Lacivert – bedenler: S, M, L, XL
+  { SKU: "TSH-3105-S",  ad: "Oversize Logo Tişört Lacivert S",   kategori: "Tişört",   mevcut_stok: 14, gunluk_satis_ortalamasi: 1.5,  tedarik_suresi_gun: 3 },
+  { SKU: "TSH-3105-M",  ad: "Oversize Logo Tişört Lacivert M",   kategori: "Tişört",   mevcut_stok: 60, gunluk_satis_ortalamasi: 3,    tedarik_suresi_gun: 3 },
+  { SKU: "TSH-3105-L",  ad: "Oversize Logo Tişört Lacivert L",   kategori: "Tişört",   mevcut_stok: 22, gunluk_satis_ortalamasi: 4,    tedarik_suresi_gun: 3 },
+  { SKU: "TSH-3105-XL", ad: "Oversize Logo Tişört Lacivert XL",  kategori: "Tişört",   mevcut_stok: 3,  gunluk_satis_ortalamasi: 1.2,  tedarik_suresi_gun: 3 },
+  // Retro Logo Tişört Gri – bedenler: S, M, L, XL
+  { SKU: "TSH-4000-S",  ad: "Retro Logo Tişört Gri S",           kategori: "Tişört",   mevcut_stok: 9,  gunluk_satis_ortalamasi: 0.8,  tedarik_suresi_gun: 4 },
+  { SKU: "TSH-4000-M",  ad: "Retro Logo Tişört Gri M",           kategori: "Tişört",   mevcut_stok: 5,  gunluk_satis_ortalamasi: 1.1,  tedarik_suresi_gun: 4 },
+  { SKU: "TSH-4000-L",  ad: "Retro Logo Tişört Gri L",           kategori: "Tişört",   mevcut_stok: 0,  gunluk_satis_ortalamasi: 1,    tedarik_suresi_gun: 4 },
+  { SKU: "TSH-4000-XL", ad: "Retro Logo Tişört Gri XL",          kategori: "Tişört",   mevcut_stok: 0,  gunluk_satis_ortalamasi: 0,    tedarik_suresi_gun: 4 },
+  // Çanta (bedensiz)
+  { SKU: "CNT-4410",    ad: "Günlük Sırt Çantası Siyah",         kategori: "Çanta",    mevcut_stok: 12, gunluk_satis_ortalamasi: 1.5,  tedarik_suresi_gun: 4 },
+  { SKU: "CNT-5501",    ad: "Bel Çantası Gri",                   kategori: "Çanta",    mevcut_stok: 25, gunluk_satis_ortalamasi: 0.8,  tedarik_suresi_gun: 5 },
+  { SKU: "CNT-6001",    ad: "Spor Seyahat Çantası",              kategori: "Çanta",    mevcut_stok: 3,  gunluk_satis_ortalamasi: 0,    tedarik_suresi_gun: 5 },
+  // Çorap (bedensiz)
+  { SKU: "COR-1101",    ad: "Performans Çorap 3'lü",             kategori: "Çorap",    mevcut_stok: 0,  gunluk_satis_ortalamasi: 4,    tedarik_suresi_gun: 3 },
+  { SKU: "COR-1205",    ad: "Bilek Çorap 5'li Beyaz",            kategori: "Çorap",    mevcut_stok: 33, gunluk_satis_ortalamasi: 6,    tedarik_suresi_gun: 3 },
+  { SKU: "COR-1300",    ad: "Spor Patik Çorap 3'lü",             kategori: "Çorap",    mevcut_stok: 80, gunluk_satis_ortalamasi: 5,    tedarik_suresi_gun: 3 },
+];
+
+/* ============================================================
+   HESAP MOTORU (IK-1 … IK-4, IK-6)
+   Her satır = bir SKU (her beden ayrı), gruplama yok.
+   ============================================================ */
+const STATUS = {
+  TUKENDI:    { key: "TUKENDI",    label: "Tükendi",    icon: "⚫", order: 0 },
+  KRITIK:     { key: "KRITIK",     label: "Kritik",     icon: "🔴", order: 1 },
+  DIKKAT:     { key: "DIKKAT",     label: "Dikkat",     icon: "🟡", order: 2 },
+  KONTROL:    { key: "KONTROL",    label: "Kontrol et", icon: "🔵", order: 3 },
+  YETERLI:    { key: "YETERLI",    label: "Yeterli",    icon: "🟢", order: 4 },
+  HAREKETSIZ: { key: "HAREKETSIZ", label: "Hareketsiz", icon: "⚪", order: 5 },
+};
+const STATUS_LIST = Object.values(STATUS).sort((a, b) => a.order - b.order);
+const DEFAULT_STATUS_ON = ["TUKENDI", "KRITIK", "DIKKAT", "KONTROL", "YETERLI"];   // Hareketsiz varsayılan gizli
+
+/** IK-3: adet alt sınırı – satışı olan üründe reyon stoğu bunun altına düşerse Kritik */
+const MIN_STOK = 2;
+
+const TR_MONTHS_SHORT = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
+
+/** IK-3: durum belirleme (üstten alta öncelik) */
+function getStatus(stok, satis, tedarik, kalanGun) {
+  if (satis === 0) {
+    // mevcut_stok reyon stoğu: stok 0 + satış 0 talep yokluğu sayılmaz, ürün reyonda yok → depoyu kontrol et
+    return stok === 0 ? STATUS.KONTROL : STATUS.HAREKETSIZ;
+  }
+  if (stok === 0) return STATUS.TUKENDI;
+  if (kalanGun <= tedarik || stok < MIN_STOK) return STATUS.KRITIK;   // gün kuralı veya adet kuralı
+  if (kalanGun <= 2 * tedarik) return STATUS.DIKKAT;
+  return STATUS.YETERLI;
+}
+
+/** IK-1, IK-2, IK-3: tek satırın hesaplanmış hali */
+function computeRow(item, today = new Date()) {
+  const stok = item.mevcut_stok;
+  const satis = item.gunluk_satis_ortalamasi;
+  const tedarik = item.tedarik_suresi_gun;
+  // IK-1: 1 ondalığa yuvarlanır; durum da bu değerle belirlenir ki ekranda görülen ile kural tutarlı olsun
+  const kalanGun = satis > 0 ? Math.round((stok / satis) * 10) / 10 : Infinity;
+  const status = getStatus(stok, satis, tedarik, kalanGun);
+  let bitisTarihi = null;                                          // IK-2
+  if (Number.isFinite(kalanGun)) {
+    bitisTarihi = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    bitisTarihi.setDate(bitisTarihi.getDate() + Math.floor(kalanGun));
+  }
+  // IK-4: tedarik süresine göre kalan tampon (1 ondalık; kayan nokta artığı olmasın)
+  const pay = Number.isFinite(kalanGun) ? Math.round((kalanGun - tedarik) * 10) / 10 : Infinity;
+  const row = { ...item, kalanGun, pay, bitisTarihi, status };
+  row.action = getAction(row, today);
+  return row;
+}
+
+/** IK-13: "Ne yapmalı?" – miktar önerisi yok, yalnızca ne zaman sipariş verileceği */
+function getAction(r, today) {
+  switch (r.status) {
+    case STATUS.TUKENDI:
+      return { main: "Bugün sipariş ver", sub: `satış kaybediliyor · ~${fmtNum(r.tedarik_suresi_gun)} gün daha stoksuz`, cls: "urgent" };
+    case STATUS.KRITIK:
+      if (r.pay < 0) return { main: "Bugün sipariş ver", sub: `~${Math.ceil(-r.pay)} gün stoksuz kalacak`, cls: "urgent" };
+      if (r.pay === 0) return { main: "Bugün sipariş ver", sub: "son gün, mal stok biterken gelir", cls: "urgent" };
+      // pay > 0 → yalnızca adet kuralıyla kritik
+      return { main: "Bugün sipariş ver", sub: `reyonda ${fmtNum(r.mevcut_stok)} adet kaldı (alt sınır ${MIN_STOK})`, cls: "urgent" };
+    case STATUS.KONTROL:
+      return { main: "Reyonda yok, depoyu kontrol et", sub: "satış verisi yok, reyona çıkmamış olabilir", cls: "check" };
+    case STATUS.DIKKAT: {
+      const n = Math.floor(r.pay);
+      if (n === 0) return { main: "En geç bugün sipariş ver", sub: "", cls: "soon" };
+      const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + n);
+      return { main: `En geç ${n} gün içinde sipariş ver`, sub: `(≈ ${fmtDate(d)})`, cls: "soon" };
+    }
+    case STATUS.YETERLI:
+      return { main: "Sipariş gerekmez", sub: "", cls: "none" };
+    default:
+      return { main: "—", sub: "", cls: "none" };
+  }
+}
+
+/** IK-4: otomatik sıralama – durum önceliği, sonra grup içi kural */
+function compareRows(a, b) {
+  if (a.status.order !== b.status.order) return a.status.order - b.status.order;
+  if (a.status === STATUS.TUKENDI) {
+    // kaybedilen satış büyük olan üstte
+    return b.gunluk_satis_ortalamasi - a.gunluk_satis_ortalamasi || a.SKU.localeCompare(b.SKU, "tr");
+  }
+  if (a.status === STATUS.KONTROL) return a.SKU.localeCompare(b.SKU, "tr");
+  if (a.status === STATUS.HAREKETSIZ) {
+    return b.mevcut_stok - a.mevcut_stok || a.SKU.localeCompare(b.SKU, "tr");
+  }
+  return (a.pay - b.pay) || (a.kalanGun - b.kalanGun) || a.SKU.localeCompare(b.SKU, "tr");
+}
+
+function computeAll(items, today = new Date()) {
+  return items.map(it => computeRow(it, today)).sort(compareRows);
+}
+
+/* ---------- Biçimlendirme ---------- */
+function fmtNum(n) {
+  return Number.isInteger(n) ? String(n) : n.toLocaleString("tr-TR", { maximumFractionDigits: 2 });
+}
+function fmtKalanGun(r) {
+  if (!Number.isFinite(r.kalanGun)) return "—";
+  return r.kalanGun.toLocaleString("tr-TR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });  // IK-1: 1 ondalık
+}
+function fmtBitis(r) {
+  if (r.status === STATUS.TUKENDI) return "Bitti";
+  if (!r.bitisTarihi) return "—";   // Hareketsiz / Kontrol et: satış yok, bitiş hesaplanamaz
+  return "≈ " + fmtDate(r.bitisTarihi);
+}
+function fmtDate(d) {
+  return d.getDate() + " " + TR_MONTHS_SHORT[d.getMonth()];
+}
+
+/* ============================================================
+   EKRAN (IK-5, IK-7)
+   ============================================================ */
+const state = {
+  rows: [],              // hesaplanmış + sıralanmış tüm satırlar
+  showInactive: false,   // IK-7: hareketsizler varsayılan gizli
+  // IK-10: filtreler (sıralamayı değiştirmez, yalnızca süzer)
+  statusOn: new Set(DEFAULT_STATUS_ON),
+  category: "",
+  search: "",
+};
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+function countByStatus(rows) {
+  const c = {};
+  STATUS_LIST.forEach(s => c[s.key] = 0);
+  rows.forEach(r => c[r.status.key]++);
+  return c;
+}
+
+/** IK-5: özet kutusu */
+function renderSummary() {
+  const c = countByStatus(state.rows);
+  const x = c.TUKENDI + c.KRITIK;
+  const box = document.getElementById("summary");
+  box.classList.toggle("ok", x === 0);
+
+  let headline, sub;
+  if (state.rows.length === 0) {
+    headline = "Gösterilecek ürün yok";
+    sub = "Geçerli satır içeren bir dosya yükleyin.";
+  } else if (x === 0) {
+    headline = "✔ Bugün acil sipariş yok";
+    sub = c.DIKKAT > 0
+      ? `${c.DIKKAT} ürün yakında sipariş gerektirecek (Dikkat), tabloda en üstte.`
+      : "Tüm ürünlerin stoğu tedarik süresinin en az 2 katı kadar yetiyor.";
+  } else {
+    headline = `Bugün <u>${x} ürün</u> için sipariş vermelisin`;
+    const parts = [];
+    if (c.TUKENDI) parts.push(`${c.TUKENDI} tükendi`);
+    if (c.KRITIK) parts.push(`${c.KRITIK} kritik (stok tedarik süresinden önce bitiyor ya da ${MIN_STOK} adetin altında)`);
+    sub = parts.join(" · ") + ". Liste en acil olandan başlıyor.";
+  }
+
+  const counters = STATUS_LIST.map(s =>
+    `<div class="counter ${s.key}"><span class="n">${c[s.key]}</span><span class="l">${s.icon} ${s.label}</span></div>`
+  ).join("");
+
+  box.innerHTML = `
+    <div class="summary-main">
+      <div class="summary-headline">${headline}</div>
+      <div class="summary-sub">${sub}</div>
+    </div>
+    <div class="counters">${counters}</div>`;
+}
+
+/* ---------- IK-12: ürün görseli ---------- */
+const CATEGORY_ICONS = { ayakkabi: "👟", tisort: "👕", canta: "🎒", corap: "🧦" };
+const DEFAULT_ICON = "📦";
+
+function categoryIcon(kategori) {
+  const k = String(kategori || "").toLocaleLowerCase("tr").trim()
+    .replace(/ı/g, "i").replace(/ş/g, "s").replace(/ç/g, "c").replace(/ğ/g, "g").replace(/ö/g, "o").replace(/ü/g, "u");
+  return CATEGORY_ICONS[k] || DEFAULT_ICON;
+}
+
+function iconHtml(icon) {
+  return `<span class="thumb icon" aria-hidden="true">${icon}</span>`;
+}
+
+/** gorsel_url geçerliyse görsel, değilse kategori ikonu; görsel yüklenemezse (onerror) ikona döner */
+function thumbHtml(r) {
+  const icon = categoryIcon(r.kategori);
+  const url = String(r.gorsel_url || "").trim();
+  if (!/^https?:\/\/\S+$/i.test(url)) return iconHtml(icon);
+  return `<img class="thumb" src="${esc(url)}" alt="" loading="lazy" data-icon="${icon}" onerror="thumbFailed(this)">`;
+}
+
+function thumbFailed(img) {
+  img.outerHTML = iconHtml(img.dataset.icon || DEFAULT_ICON);
+}
+
+function visibleRows() {
+  const q = state.search.trim().toLocaleLowerCase("tr");
+  return state.rows.filter(r => {
+    if (r.status === STATUS.HAREKETSIZ) { if (!state.showInactive) return false; }
+    else if (!state.statusOn.has(r.status.key)) return false;
+    if (state.category && r.kategori !== state.category) return false;
+    if (q && !r.SKU.toLocaleLowerCase("tr").includes(q) && !r.ad.toLocaleLowerCase("tr").includes(q)) return false;
+    return true;
+  });
+}
+
+/** IK-10: durum çipleri + kategori listesi */
+function renderFilters() {
+  const c = countByStatus(state.rows);
+  document.getElementById("statusChips").innerHTML = STATUS_LIST.map(s => {
+    const on = s === STATUS.HAREKETSIZ ? state.showInactive : state.statusOn.has(s.key);
+    return `<button type="button" class="chip ${on ? "on" : ""}" data-key="${s.key}">${s.icon} ${s.label} (${c[s.key]})</button>`;
+  }).join("");
+  document.querySelectorAll("#statusChips .chip").forEach(btn => btn.onclick = () => {
+    const k = btn.dataset.key;
+    if (k === "HAREKETSIZ") state.showInactive = !state.showInactive;   // IK-7 anahtarıyla aynı durum
+    else if (state.statusOn.has(k)) state.statusOn.delete(k);
+    else state.statusOn.add(k);
+    renderFilters();
+    renderTable();
+  });
+}
+
+function renderCategoryOptions() {
+  const cats = [...new Set(state.rows.map(r => r.kategori))].sort((a, b) => a.localeCompare(b, "tr"));
+  if (!cats.includes(state.category)) state.category = "";
+  const sel = document.getElementById("categorySelect");
+  sel.innerHTML = `<option value="">Tüm kategoriler</option>` +
+    cats.map(k => `<option value="${esc(k)}" ${k === state.category ? "selected" : ""}>${esc(k)}</option>`).join("");
+}
+
+function renderTable() {
+  const rows = visibleRows();
+  const tbody = document.getElementById("tbody");
+  if (rows.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="10" class="empty">${state.rows.length ? "Seçili filtrelere uyan ürün yok." : "Bu görünümde ürün yok."}</td></tr>`;
+  } else {
+    tbody.innerHTML = rows.map(r => `
+      <tr class="row-${r.status.key}">
+        <td><span class="badge ${r.status.key}">${r.status.icon} ${r.status.label}</span></td>
+        <td class="action ${r.action.cls}">${r.action.main}${r.action.sub ? `<span class="action-sub">${r.action.sub}</span>` : ""}</td>
+        <td class="sku">${esc(r.SKU)}</td>
+        <td class="name"><div class="prod">${thumbHtml(r)}<span>${esc(r.ad)}</span></div></td>
+        <td>${esc(r.kategori)}</td>
+        <td class="num">${fmtNum(r.mevcut_stok)}</td>
+        <td class="num">${fmtNum(r.gunluk_satis_ortalamasi)}</td>
+        <td class="num">${fmtNum(r.tedarik_suresi_gun)}</td>
+        <td class="num strong">${fmtKalanGun(r)}</td>
+        <td>${fmtBitis(r)}</td>
+      </tr>`).join("");
+  }
+
+  // IK-7: hareketsiz anahtarı
+  const nInactive = state.rows.filter(r => r.status === STATUS.HAREKETSIZ).length;
+  const bar = document.getElementById("inactiveBar");
+  if (nInactive === 0) {
+    bar.innerHTML = "";
+  } else {
+    bar.innerHTML = `<span>⚪ ${nInactive} hareketsiz ürün (reyonda stok var, satış 0)</span>
+      <button class="link" id="toggleInactive">${state.showInactive ? "Gizle" : "Göster"}</button>`;
+    document.getElementById("toggleInactive").onclick = () => {
+      state.showInactive = !state.showInactive;
+      renderFilters();
+      renderTable();
+    };
+  }
+  document.getElementById("rowCount").textContent = `${rows.length} / ${state.rows.length} ürün gösteriliyor`;
+}
+
+function render() {
+  renderSummary();
+  renderCategoryOptions();
+  renderFilters();
+  renderTable();
+}
+
+function initFilters() {
+  document.getElementById("categorySelect").addEventListener("change", e => { state.category = e.target.value; renderTable(); });
+  document.getElementById("searchInput").addEventListener("input", e => { state.search = e.target.value; renderTable(); });
+}
+
+function loadData(items) {
+  state.rows = computeAll(items);
+  // Yeni veri gelince filtreler varsayılana döner (eski arama yeni dosyadaki ürünleri gizlemesin)
+  state.statusOn = new Set(DEFAULT_STATUS_ON);
+  state.showInactive = false;
+  state.category = "";
+  state.search = "";
+  document.getElementById("searchInput").value = "";
+  render();
+}
+
+/* ============================================================
+   DOSYA YÜKLEME + DOĞRULAMA (IK-8, IK-9, IK-11)
+   ============================================================ */
+const REQUIRED_COLUMNS = ["SKU", "ad", "kategori", "mevcut_stok", "gunluk_satis_ortalamasi", "tedarik_suresi_gun"];
+const TEXT_COLUMNS = ["SKU", "ad", "kategori"];
+const NUMBER_COLUMNS = ["mevcut_stok", "gunluk_satis_ortalamasi", "tedarik_suresi_gun"];
+const OPTIONAL_COLUMNS = ["gorsel_url"];   // IK-12: yoksa dosya yine kabul edilir
+
+/** Kolon adı normalize: büyük/küçük harf, baş/son boşluk, iç boşluk/tire → "_" toleranslı */
+function normKey(s) {
+  return String(s ?? "")
+    .replace(/^﻿/, "")
+    .replace(/[İIı]/g, "i")
+    .toLowerCase()
+    .trim()
+    .replace(/[\s\-]+/g, "_");
+}
+
+function parseNumber(v) {
+  if (typeof v === "number") return Number.isFinite(v) ? { ok: true, value: v } : { ok: false, reason: "sayısal değil" };
+  const s = String(v ?? "").trim();
+  if (s === "") return { ok: false, reason: "boş" };
+  if (!/^-?\d+(\.\d+)?$/.test(s)) {
+    return { ok: false, reason: /^-?\d+,\d+$/.test(s) ? `"${s}" sayısal değil (ondalık ayırıcı nokta olmalı)` : `"${s}" sayısal değil` };
+  }
+  return { ok: true, value: Number(s) };
+}
+
+/**
+ * aoa: satır dizisi (ilk satır başlık). Dönüş:
+ *  { missing: [eksik kolonlar] }  → yükleme reddedilir
+ *  { items: [...], skipped: [{ row, sku, reason }] }
+ */
+function parseRows(aoa) {
+  if (!aoa || aoa.length === 0) return { missing: REQUIRED_COLUMNS.slice(), empty: true };
+  const header = aoa[0].map(normKey);
+  const colIndex = {};
+  const missing = [];
+  for (const col of REQUIRED_COLUMNS) {
+    const idx = header.indexOf(normKey(col));
+    if (idx === -1) missing.push(col); else colIndex[col] = idx;
+  }
+  if (missing.length) return { missing };
+  const gorselIdx = header.indexOf(normKey("gorsel_url"));   // -1 → kolon yok
+
+  const items = [];
+  const skipped = [];
+  const seen = new Map(); // SKU → ilk görüldüğü satır no
+
+  for (let i = 1; i < aoa.length; i++) {
+    const raw = aoa[i] || [];
+    const rowNo = i + 1; // Excel'deki satır numarası (1. satır başlık)
+    if (raw.every(v => String(v ?? "").trim() === "")) continue; // tamamen boş satır: sessizce geç
+
+    const reasons = [];
+    const item = {};
+    for (const col of TEXT_COLUMNS) {
+      const v = String(raw[colIndex[col]] ?? "").trim();
+      if (v === "") reasons.push(`${col} boş`);
+      item[col] = v;
+    }
+    for (const col of NUMBER_COLUMNS) {
+      const p = parseNumber(raw[colIndex[col]]);
+      if (!p.ok) { reasons.push(`${col} ${p.reason}`); continue; }
+      if (p.value < 0) { reasons.push(`${col} negatif (${p.value})`); continue; }
+      item[col] = p.value;
+    }
+    if (item.tedarik_suresi_gun === 0) reasons.push("tedarik_suresi_gun 0 olamaz");
+    // IK-12: geçersiz/boş görsel linki satırı atlatmaz, ekranda kategori ikonu gösterilir
+    item.gorsel_url = gorselIdx === -1 ? "" : String(raw[gorselIdx] ?? "").trim();
+
+    if (!reasons.length && item.SKU) {
+      const key = item.SKU.toLocaleUpperCase("tr");
+      if (seen.has(key)) reasons.push(`tekrarlanan SKU (ilk kayıt ${seen.get(key)}. satırda, o tutuldu)`);
+      else seen.set(key, rowNo);
+    }
+
+    if (reasons.length) skipped.push({ row: rowNo, sku: item.SKU || "", reason: reasons.join("; ") });
+    else items.push(item);
+  }
+  return { items, skipped };
+}
+
+/** CSV'yi metin olarak çöz: önce UTF-8, olmazsa Türkçe Windows kodlaması (Excel'in "CSV" kaydı) */
+function decodeText(buf) {
+  try { return new TextDecoder("utf-8", { fatal: true }).decode(buf); }
+  catch { return new TextDecoder("windows-1254").decode(buf); }
+}
+
+async function readFileToAoa(file) {
+  if (typeof XLSX === "undefined") {
+    throw new Error("Dosya okuma kütüphanesi (SheetJS) yüklenemedi. İnternet bağlantısını kontrol edip sayfayı yenileyin.");
+  }
+  const buf = await file.arrayBuffer();
+  const isCsv = /\.csv$/i.test(file.name);
+  const wb = isCsv
+    ? XLSX.read(decodeText(buf), { type: "string", raw: true })
+    : XLSX.read(buf, { type: "array" });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  if (!ws) return [];
+  return XLSX.utils.sheet_to_json(ws, { header: 1, defval: "", blankrows: true, raw: true });
+}
+
+function showMessages(html) {
+  document.getElementById("messages").innerHTML = html;
+  document.querySelectorAll("#messages .close").forEach(b => b.onclick = () => b.parentElement.remove());
+}
+
+function setSourceBadge(fileName) {
+  const badge = document.getElementById("sourceBadge");
+  if (!fileName) {
+    badge.className = "source-badge sample";
+    badge.textContent = "ÖRNEK VERİ";
+    return;
+  }
+  const t = new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+  badge.className = "source-badge file";
+  badge.textContent = `Yüklenen dosya: ${fileName} · ${t}`;
+  badge.title = badge.textContent;
+}
+
+async function handleFile(file) {
+  if (!file) return;
+  if (!/\.(xlsx|xls|csv)$/i.test(file.name)) {
+    showMessages(`<div class="msg error"><button class="close">×</button><b>Dosya yüklenmedi</b>
+      "${esc(file.name)}" desteklenmeyen bir dosya türü. Lütfen .xlsx veya .csv dosyası seçin.</div>`);
+    return;
+  }
+  let result;
+  try {
+    result = parseRows(await readFileToAoa(file));
+  } catch (e) {
+    showMessages(`<div class="msg error"><button class="close">×</button><b>Dosya okunamadı</b>${esc(e.message || e)}</div>`);
+    return;
+  }
+
+  if (result.missing) {
+    const msg = result.empty
+      ? "Dosya boş görünüyor."
+      : `Eksik kolon: <b style="display:inline">${result.missing.map(esc).join(", ")}</b>.`;
+    showMessages(`<div class="msg error"><button class="close">×</button><b>"${esc(file.name)}" yüklenmedi</b>
+      ${msg} İlk satırda şu kolonlar olmalı: <code>${REQUIRED_COLUMNS.join(", ")}</code>.
+      Doğru başlıklar için <a href="#" id="tplLink">şablonu indirin</a>. Ekrandaki veri değiştirilmedi.</div>`);
+    document.getElementById("tplLink").onclick = e => { e.preventDefault(); downloadTemplate(); };
+    return;
+  }
+
+  if (result.items.length === 0) {
+    showMessages(`<div class="msg error"><button class="close">×</button><b>"${esc(file.name)}" yüklenmedi</b>
+      Dosyada geçerli ürün satırı yok.${result.skipped.length ? ` ${result.skipped.length} satır hatalı:` : ""}
+      ${skippedList(result.skipped)} Ekrandaki veri değiştirilmedi.</div>`);
+    return;
+  }
+
+  loadData(result.items);
+  setSourceBadge(file.name);
+  showMessages(result.skipped.length
+    ? `<div class="msg warn"><button class="close">×</button><b>⚠ ${result.skipped.length} satır atlandı</b>
+        ${result.items.length} ürün yüklendi. Aşağıdaki satırlar hatalı olduğu için hesaba katılmadı:
+        ${skippedList(result.skipped)}</div>`
+    : "");
+}
+
+function skippedList(skipped) {
+  if (!skipped.length) return "";
+  return "<ul>" + skipped.map(s =>
+    `<li>Satır ${s.row}${s.sku ? ` (${esc(s.sku)})` : ""}: ${esc(s.reason)}</li>`).join("") + "</ul>";
+}
+
+/** IK-11: doğru kolon adlarıyla örnek CSV (PO'nun 3 satırı) + isteğe bağlı gorsel_url (boş) */
+function downloadTemplate() {
+  const cols = [...REQUIRED_COLUMNS, ...OPTIONAL_COLUMNS];
+  const lines = [cols.join(",")];
+  SAMPLE_DATA.slice(0, 3).forEach(r => lines.push(cols.map(c => {
+    const v = String(r[c] ?? "");
+    return /[",]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+  }).join(",")));
+  const blob = new Blob(["﻿" + lines.join("\r\n") + "\r\n"], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "stok_sablonu.csv";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+function initUpload() {
+  const input = document.getElementById("fileInput");
+  input.addEventListener("change", () => { handleFile(input.files[0]); input.value = ""; });
+  document.getElementById("templateBtn").addEventListener("click", downloadTemplate);
+
+  // Sürükle-bırak
+  let depth = 0;
+  window.addEventListener("dragenter", e => { e.preventDefault(); depth++; document.body.classList.add("dragging"); });
+  window.addEventListener("dragleave", () => { if (--depth <= 0) { depth = 0; document.body.classList.remove("dragging"); } });
+  window.addEventListener("dragover", e => e.preventDefault());
+  window.addEventListener("drop", e => {
+    e.preventDefault();
+    depth = 0;
+    document.body.classList.remove("dragging");
+    handleFile(e.dataTransfer.files[0]);
+  });
+}
+
+/* ---------- Başlangıç ---------- */
+initUpload();
+initFilters();
+document.getElementById("today").textContent =
+  new Date().toLocaleDateString("tr-TR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+loadData(SAMPLE_DATA);
+</script>
+</body>
+</html>

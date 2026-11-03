@@ -1,0 +1,17 @@
+Mağaza Stok Uyarı Paneli
+
+Açıklama
+Mağazamızda yüzlerce ürün var, hangisinin stoğu bitmek üzere göremiyoruz. Sabah gelip her ürün için tek tek Excel'e bakıp "bu bitmiş, bunu sipariş ver" diye kafamdan hesaplıyorum. Sonunda satmayı bıraktığımız popüler ürünler oluyor, müşteri "yok mu?" deyince fark ediyoruz.
+
+İhtiyacımız: Elimizdeki ürün listesine ve günlük satış hızına bakıp bir panel çıkarsın. Bir bakışta hangi ürünün ne kadar süre sonra biteceğini göreyim. Kritik olanlar öne alınsın — sabah geldiğimde ilk gördüğüm o olsun.
+
+Elimizdeki verilerde her ürün için SKU, ad, kategori, mevcut stok ve günlük ortalama satış bilgisi var.
+
+
+
+Kabul Kriterleri
+- Ürün listesi bir tabloda görünsün
+- Her ürünün stokta ne kadar süre kalacağı hesaplansın
+- Kritik durumdaki ürünler görsel olarak öne çıksın (renk vs.)
+- Sıralama otomatik olsun — en acil dikkat gereken üstte
+- Sabah bakınca "sipariş vermem gereken var mı" hemen anlaşılsın
